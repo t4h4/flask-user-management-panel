@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+
+{% block body %}
+
+    <h3>Kontrol Paneli</h3>
+    <small>Hoşgeldiniz, {{session["username"]}}!</small>
+    <hr>
+
+    <a href="/addarticle" class = "btn btn-danger">Makale Ekle</a>
+
+    {% if articles %}
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th scope="col">id</th>
+                    <th scope="col">İsim</th>
+                    <th scope="col">Mail</th>
+                    <th scope="col">Kullanıcı Adı</th>
+                    <th scope="col"></th>
+                    <th scope="col"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for article in articles %}
+                    <tr>
+                        <th scope="row">{{article.id}}</th>
+                        <td><a href="/article/{{article.id}}">{{article.name}}</a></td>
+                        <td>{{article.email}}</td>
+                        <td>{{article.username}}</td>
+                        {% if article.status == "inactive" %}
+                            <td><a href="/edit/{{article.id}}" class = "btn btn-success">Aktifleştir</a></td>
+                        {% else %}
+                            <td><a href="/edit/{{article.id}}" class = "btn btn-danger">İnaktifleştir</a></td>
+                        {% endif %}
+                        
+                        <td><a href="/delete/{{article.id}}" class = "btn btn-danger">Sil</a></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>  
+
+    {% else %}
+        <div class = "alert alert-danger">Henüz makaleniz bulunmuyor...</div>
+        
+    {% endif %}
+
+{% endblock body %}
+
