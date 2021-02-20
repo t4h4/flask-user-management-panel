@@ -3,8 +3,9 @@ from flask_mysqldb import MySQL
 from wtforms import Form,StringField,TextAreaField,PasswordField,validators
 from passlib.hash import sha256_crypt
 # decoratorlar icin gerekli
-from functools import wraps     
-
+from functools import wraps
+import datetime     
+from datetime import timedelta
 # Kullanıcı Giriş Decorator Dashboard sayfası görüntüleme kontrolü
 # fonksiyonun içine fonksiyon gönderilmiş. def dashboard gönderilecek
 def login_required(f): 
@@ -68,12 +69,13 @@ def register():
         email = form.email.data
         password = sha256_crypt.encrypt(form.password.data) # veri şifrelenerek alınıyor.
         status = "inactive"
+        role = "user"
         # cursor mysql veritabanında işlem sağlamamızı yarayan yapı. bu yapı sayesinde sql sorgularını çalıştırabiliyoruz.
         cursor = mysql.connection.cursor() 
 
-        sorgu = "Insert into users(name,email,username,password,status) VALUES(%s,%s,%s,%s,%s)"
+        sorgu = "Insert into users(name,email,username,password,status,role) VALUES(%s,%s,%s,%s,%s,%s)"
 
-        cursor.execute(sorgu,(name,email,username,password,status))
+        cursor.execute(sorgu,(name,email,username,password,status,role))
         mysql.connection.commit() # veritabanında değişiklik yaptığımız vakit commit etmek zorundayız.
 
         cursor.close()
@@ -109,7 +111,21 @@ def login():
 
                return redirect(url_for("index"))
            else:
-               flash("Parolanızı Yanlış Girdiniz.","danger")
+               userid = data["id"]
+               son_hata = data["wrongpasstime"]
+               bugun = datetime.datetime.now() 
+               fark = bugun - son_hata
+               if fark < timedelta (seconds = 1):
+                    new_wrongpassnumber = data["wrongpassnumber"] + 1
+               else:
+                    new_wrongpassnumber = data["wrongpassnumber"]
+               sorgu1 = "Update users Set wrongpasstime = %s where id = %s "
+               sorgu2 = "Update users Set wrongpassnumber = %s where id = %s "
+               cursor = mysql.connection.cursor()
+               cursor.execute(sorgu1,(bugun,userid))
+               cursor.execute(sorgu2,(new_wrongpassnumber,userid))
+               mysql.connection.commit()
+               flash("Parolanızı Yanlış Girdinizz.","danger")
                return redirect(url_for("login")) 
 
        else:
@@ -206,20 +222,18 @@ def article(id):
 @login_required
 def delete(id):
     cursor = mysql.connection.cursor()
-
-    # Sadece kendi makalemizi silme yetkisine sahip olabiliriz.
-    sorgu = "Select * from articles where author = %s and id = %s"
-
-    result = cursor.execute(sorgu,(session["username"],id))
+    result = 1
     # Kendimize ait makalemiz varsa aşağıdaki if bloğu çalışacak.
     if result > 0:
-        sorgu2 = "Delete from articles where id = %s"
+        sorgu2 = "Delete from users where id = %s"
 
         cursor.execute(sorgu2,(id,))
 
         mysql.connection.commit()
-
+        flash("Üye silindi","success")
         return redirect(url_for("dashboard"))
+        flash("Üye silindi","success")
+        
     else:
         flash("Böyle bir makale yok veya bu işleme yetkiniz yok","danger")
         return redirect(url_for("index"))
