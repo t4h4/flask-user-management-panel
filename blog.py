@@ -70,10 +70,11 @@ def register():
         password = sha256_crypt.encrypt(form.password.data) # veri şifrelenerek alınıyor.
         status = "inactive"
         role = "user"
+        # wrongpasstimeDefault = datetime.datetime(1993, 18, 4, 00, 00, 00)
         # cursor mysql veritabanında işlem sağlamamızı yarayan yapı. bu yapı sayesinde sql sorgularını çalıştırabiliyoruz.
         cursor = mysql.connection.cursor() 
 
-        sorgu = "Insert into users(name,email,username,password,status,role) VALUES(%s,%s,%s,%s,%s,%s)"
+        sorgu = "Insert into users(name,email,username,password,status,role,wrongpasstime) VALUES(%s,%s,%s,%s,%s,%s,('2021-02-21 01:34:00'))"
 
         cursor.execute(sorgu,(name,email,username,password,status,role))
         mysql.connection.commit() # veritabanında değişiklik yaptığımız vakit commit etmek zorundayız.
@@ -104,7 +105,13 @@ def login():
            real_password = data["password"] # kullanıcının şifresi değişkene atandı.
 
            if sha256_crypt.verify(password_entered,real_password):
+               new_wrongpassnumber = 0
+               userid = data["id"]
                flash("Başarıyla Giriş Yaptınız.","success")
+               sorgu5 = "Update users Set wrongpassnumber = %s where id = %s "
+               cursor = mysql.connection.cursor()
+               cursor.execute(sorgu5,(new_wrongpassnumber,userid))
+               mysql.connection.commit()
 
                session["logged_in"] = True
                session["username"] = username
@@ -115,8 +122,10 @@ def login():
                son_hata = data["wrongpasstime"]
                bugun = datetime.datetime.now() 
                fark = bugun - son_hata
-               if fark < timedelta (seconds = 1):
+               if fark <= timedelta (minutes = 45):
                     new_wrongpassnumber = data["wrongpassnumber"] + 1
+               elif fark > timedelta (minutes = 45):  
+                    new_wrongpassnumber = 1   
                else:
                     new_wrongpassnumber = data["wrongpassnumber"]
                sorgu1 = "Update users Set wrongpasstime = %s where id = %s "
@@ -124,6 +133,10 @@ def login():
                cursor = mysql.connection.cursor()
                cursor.execute(sorgu1,(bugun,userid))
                cursor.execute(sorgu2,(new_wrongpassnumber,userid))
+               if new_wrongpassnumber == 3:
+                   sorgu4 = "Update users Set status = 'inactive' where id = %s "
+                   cursor.execute(sorgu4,(userid,))
+                   flash("Üye inaktif edildi","success")
                mysql.connection.commit()
                flash("Parolanızı Yanlış Girdinizz.","danger")
                return redirect(url_for("login")) 
